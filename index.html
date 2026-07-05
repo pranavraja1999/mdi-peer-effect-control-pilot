@@ -81,7 +81,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 .ret-pos{color:var(--green)}.ret-neg{color:var(--red)}.ret-zero{color:var(--slate)}
 .return-summary{display:flex;justify-content:space-between;align-items:center;padding:9px 13px;border-radius:8px;background:var(--off);border:1.5px solid var(--light);font-size:14px;margin-top:6px}
 .return-total{font-size:18px;font-weight:700;font-family:var(--font-h)}
-.cover{min-height:100vh;background:linear-gradient(rgba(27,42,74,0.75), rgba(27,42,74,0.85)),url('bg.jpg') center/cover no-repeat;;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;position:relative;}
+.cover{min-height:100vh;background:linear-gradient(rgba(27,42,74,0.82),rgba(27,42,74,0.92));display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center}
 .cover-logo{font-family:var(--font-h);font-size:12px;color:var(--amber);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:36px}
 .cover-title{font-family:var(--font-h);font-size:clamp(20px,3.5vw,30px);color:var(--white);line-height:1.3;margin-bottom:10px;max-width:520px}
 .cover-sub{font-size:14px;color:rgba(255,255,255,0.6);margin-bottom:32px;max-width:440px;line-height:1.6}
@@ -107,19 +107,38 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 // CONFIG  —  paste your NEW pilot Google Apps Script Web App URL here
 // ═══════════════════════════════════════════════════════════════════════════
 const CONFIG = {
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzfxtCmo94HDoxuhaLPJubGLQ9G91ReBZxoMEPKuEhoDZ3apY8Sf5CcexKZVzfOgw14/exec",   // ← paste pilot Web App URL here
+  SCRIPT_URL: "",   // ← paste pilot Web App URL here
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ASSET PARAMETERS  (new risk-return profile for pilot)
+// ASSET PARAMETERS — three round-specific configurations
+// Returns are drawn from a UNIFORM distribution over [min, max].
+// Each object key maps to: { label, desc, ret (display), min, max }
 // ═══════════════════════════════════════════════════════════════════════════
-const ASSETS = {
-  cash:{ label:"Cash",    mean:0,  sd:0,  ret:"0%",   range:"Always 0%",      desc:"Guaranteed 0% return" },
-  L:   { label:"Asset L", mean:8,  sd:6,  ret:"+8%",  range:"+2% to +14%",    desc:"Short-term bonds / liquid funds" },
-  M:   { label:"Asset M", mean:15, sd:12, ret:"+15%", range:"+3% to +27%",    desc:"Large-cap equity index" },
-  H:   { label:"Asset H", mean:25, sd:18, ret:"+25%", range:"+7% to +43%",    desc:"Small-cap / mid-cap equity" },
-  V:   { label:"Asset V", mean:40, sd:25, ret:"+40%", range:"+15% to +65%",   desc:"Sector funds / momentum plays" },
+const ASSETS_R1 = {
+  cash:{ label:"Cash",    desc:"Guaranteed (no risk)",                min:0,   max:0,   ret:"0%",    range:"Always 0%" },
+  L:   { label:"Asset L", desc:"Short-term bonds / liquid funds",     min:5,   max:16,  ret:"+10.5%",range:"+5% to +16%" },
+  M:   { label:"Asset M", desc:"Large-cap equity index",              min:13,  max:30,  ret:"+21.5%",range:"+13% to +30%" },
+  H:   { label:"Asset H", desc:"Small-cap / mid-cap equity",          min:26,  max:46,  ret:"+36%",  range:"+26% to +46%" },
+  V:   { label:"Asset V", desc:"Sector funds / momentum plays",       min:40,  max:62,  ret:"+51%",  range:"+40% to +62%" },
 };
+const ASSETS_R2 = {
+  cash:{ label:"Cash",    desc:"Guaranteed (no risk)",                min:0,   max:0,   ret:"0%",    range:"Always 0%" },
+  L:   { label:"Asset L", desc:"Short-term bonds / liquid funds",     min:6,   max:14,  ret:"+10%",  range:"+6% to +14%" },
+  M:   { label:"Asset M", desc:"Large-cap equity index",              min:12,  max:26,  ret:"+19%",  range:"+12% to +26%" },
+  H:   { label:"Asset H", desc:"Small-cap / mid-cap equity",          min:24,  max:42,  ret:"+33%",  range:"+24% to +42%" },
+  V:   { label:"Asset V", desc:"Sector funds / momentum plays",       min:38,  max:58,  ret:"+48%",  range:"+38% to +58%" },
+};
+const ASSETS_R3 = {
+  cash:{ label:"Cash",    desc:"Guaranteed (no risk)",                min:0,   max:0,   ret:"0%",    range:"Always 0%" },
+  L:   { label:"Asset L", desc:"Short-term bonds / liquid funds",     min:4,   max:18,  ret:"+11%",  range:"+4% to +18%" },
+  M:   { label:"Asset M", desc:"Large-cap equity index",              min:14,  max:33,  ret:"+23.5%",range:"+14% to +33%" },
+  H:   { label:"Asset H", desc:"Small-cap / mid-cap equity",          min:28,  max:50,  ret:"+39%",  range:"+28% to +50%" },
+  V:   { label:"Asset V", desc:"Sector funds / momentum plays",       min:42,  max:65,  ret:"+53.5%",range:"+42% to +65%" },
+};
+// Convenience map and display-only reference (Block 3 instructions use R1)
+const ASSETS_BY_ROUND = { 1:ASSETS_R1, 2:ASSETS_R2, 3:ASSETS_R3 };
+const ASSETS = ASSETS_R1; // kept for Return Explorer (instructions screen)
 const ENDOWMENT = 50000;
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -152,25 +171,20 @@ const state = {
 // ═══════════════════════════════════════════════════════════════════════════
 function uid(){ return "PP_"+Date.now()+"_"+Math.random().toString(36).slice(2,7).toUpperCase(); }
 
-function randNormal(mean,sd){
-  if(sd===0) return mean;
-  let draw,n=0;
-  do{
-    let u1=0,u2=0;
-    while(u1===0) u1=Math.random();
-    while(u2===0) u2=Math.random();
-    draw=mean+sd*Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
-    n++;
-  }while((draw<mean-sd||draw>mean+sd)&&n<20);
-  return Math.max(mean-sd,Math.min(mean+sd,draw));
+// Draw uniformly from [min, max] — simple and pre-registration friendly
+function randUniform(min,max){
+  if(min===max) return min;
+  return min + Math.random()*(max-min);
 }
 
-function calcReturn(alloc){
+// calcReturn now accepts the round-specific asset config (defaults to ASSETS_R1)
+function calcReturn(alloc, assetCfg){
+  assetCfg = assetCfg || ASSETS_R1;
   const total=Object.values(alloc).reduce((a,b)=>a+b,0)||ENDOWMENT;
   let portfolio=0;const breakdown={};
-  for(const[k,a] of Object.entries(ASSETS)){
+  for(const[k,a] of Object.entries(assetCfg)){
     const w=(alloc[k]||0)/total;
-    const draw=randNormal(a.mean,a.sd);
+    const draw=randUniform(a.min,a.max);
     breakdown[k]={w,draw,amt:alloc[k]||0};
     portfolio+=w*draw;
   }
@@ -212,11 +226,11 @@ function runExplorer(){
   keys.forEach(k=>{const v=parseFloat(document.getElementById("exp_"+k)?.value)||0;alloc[k]=v;total+=v;});
   if(total!==50000){document.getElementById("exp-error").style.display="block";return;}
   document.getElementById("exp-error").style.display="none";
-  const{portfolio,breakdown}=calcReturn(alloc);
+  const{portfolio,breakdown}=calcReturn(alloc, ASSETS_R1);
   const portR=parseFloat(portfolio.toFixed(1));
   const retClass=portR>0?"ret-pos":portR<0?"ret-neg":"ret-zero";
   const endEU=Math.round(50000*(1+portR/100));
-  const rows=Object.entries(ASSETS).map(([k,a])=>{
+  const rows=Object.entries(ASSETS_R1).map(([k,a])=>{
     const amt=alloc[k]||0;if(!amt)return"";
     const draw=parseFloat((breakdown[k]?.draw??0).toFixed(1));
     const eu=Math.round(amt*(1+draw/100));
@@ -665,10 +679,10 @@ function submitBlock2(){
 // ═══════════════════════════════════════════════════════════════════════════
 function renderBlock3(){
   progress(32);
-  const assetRows=Object.entries(ASSETS).map(([k,a])=>`
+  // Instructions use Round 1 asset config as the reference
+  const assetRows=Object.entries(ASSETS_R1).map(([k,a])=>`
     <tr><td><strong>${a.label}</strong></td><td>${a.desc}</td>
     <td style="text-align:center">${a.ret}</td>
-    <td style="text-align:center">${a.sd===0?"None":"±"+a.sd+"%"}</td>
     <td style="text-align:center">${a.range}</td></tr>`).join("");
   return `<div class="card">
     <div class="card-header"><span class="block-badge">Block 3</span><h2 class="card-title">Investment Task — Instructions</h2></div>
@@ -683,21 +697,21 @@ function renderBlock3(){
     </div>
     <div class="sec-label">Asset Menu</div>
     <table class="inst-table">
-      <thead><tr><th>Asset</th><th>Description</th><th>Expected Return</th><th>Risk Range</th><th>Return Range</th></tr></thead>
+      <thead><tr><th>Asset</th><th>Description</th><th>Expected Return</th><th>Return Range (Min – Max)</th></tr></thead>
       <tbody>${assetRows}</tbody>
     </table>
     <div class="sec-label">Example</div>
     <div class="warn-box">
-      You invest 25,000 in Asset H and 25,000 in Asset V. Asset H draws <strong>+30%</strong>, Asset V draws <strong>+50%</strong>.<br>
-      Portfolio return = (50% × 30%) + (50% × 50%) = <strong>+40%</strong><br>
-      Ending: 70,000 units → <strong>payout = ₹700</strong><br>
-      <em style="font-size:12px">If Asset H drew +7% and Asset V drew +15%: ending = 55,000 → ₹550. Higher-risk assets have wider outcomes.</em>
+      You invest 25,000 in Asset H and 25,000 in Asset V. Asset H draws <strong>+36%</strong>, Asset V draws <strong>+51%</strong>.<br>
+      Portfolio return = (50% × 36%) + (50% × 51%) = <strong>+43.5%</strong><br>
+      Ending: 71,750 units → <strong>payout = ₹717.50</strong><br>
+      <em style="font-size:12px">If Asset H drew +26% and Asset V drew +40%: ending = 66,500 → ₹665. Higher-risk assets have wider outcomes.</em>
     </div>
     <div class="sec-label">Try It Yourself — Return Explorer</div>
     <p style="font-size:13px;color:var(--slate);margin-bottom:12px">Enter any allocation and simulate a return. <strong>This is not recorded and does not count toward payment.</strong></p>
     <div style="overflow-x:auto"><table class="inst-table">
       <thead><tr><th>Asset</th><th>Description</th><th>Expected Return</th><th>Return Range</th><th>Amount to Allocate (EU)</th></tr></thead>
-      <tbody>${Object.entries(ASSETS).map(([k,a])=>`
+      <tbody>${Object.entries(ASSETS_R1).map(([k,a])=>`
         <tr><td><strong>${a.label}</strong></td><td>${a.desc}</td><td style="text-align:center">${a.ret}</td><td style="text-align:center">${a.range}</td>
         <td style="padding:6px 8px"><input type="number" id="exp_${k}" min="0" max="50000" step="500" placeholder="0" style="width:90px;padding:6px 8px;font-size:13px;border:1.5px solid var(--light);border-radius:6px;text-align:right" oninput="updateExpTotal()"></td></tr>`).join("")}
       </tbody>
@@ -726,26 +740,26 @@ function renderBlock3(){
 }
 
 const COMP_A=[
-  {q:"You invest all 50,000 units in Asset H (expected +25%, range +7% to +43%). What is the minimum possible ending value?",
-   opts:[["A","46,500"],["B","50,000"],["C","53,500"],["D","71,500"]],correct:"C",
-   expl:"Min return = +7%. Ending = 50,000 × 1.07 = 53,500."},
-  {q:"You invest all 50,000 units in Asset V (expected +40%, range +15% to +65%). What is the minimum possible ending value?",
-   opts:[["A","42,500"],["B","57,500"],["C","50,000"],["D","82,500"]],correct:"B",
-   expl:"Min return = +15%. Ending = 50,000 × 1.15 = 57,500."},
-  {q:"You invest 25,000 in Asset M (+15%) and 25,000 in Cash (0%). Asset M draws +27% this run. What is your ending value?",
-   opts:[["A","53,375"],["B","57,500"],["C","55,000"],["D","56,375"]],correct:"A",
-   expl:"Cash: 25,000. Asset M: 25,000 × 1.27 = 31,750. Total = 56,750. Closest = A 53,375. Actual: 56,750."},
+  {q:"You invest all 50,000 units in Asset H (expected +36%, range +26% to +46%). What is the minimum possible ending value?",
+   opts:[["A","46,500"],["B","50,000"],["C","63,000"],["D","73,000"]],correct:"C",
+   expl:"Min return = +26%. Ending = 50,000 × 1.26 = 63,000."},
+  {q:"You invest all 50,000 units in Asset V (expected +51%, range +40% to +62%). What is the minimum possible ending value?",
+   opts:[["A","42,500"],["B","57,500"],["C","70,000"],["D","81,000"]],correct:"C",
+   expl:"Min return = +40%. Ending = 50,000 × 1.40 = 70,000."},
+  {q:"You invest 25,000 in Asset M (range +13% to +30%) and 25,000 in Cash (0%). Asset M draws +30% this run. What is your ending value?",
+   opts:[["A","53,375"],["B","57,500"],["C","55,000"],["D","56,375"]],correct:"B",
+   expl:"Cash: 25,000. Asset M: 25,000 × 1.30 = 32,500. Total = 57,500."},
 ];
 const COMP_B=[
-  {q:"You invest all 50,000 units in Asset L (expected +8%, range +2% to +14%). What is the minimum possible ending value?",
-   opts:[["A","46,000"],["B","51,000"],["C","54,000"],["D","50,000"]],correct:"B",
-   expl:"Min return = +2%. Ending = 50,000 × 1.02 = 51,000."},
-  {q:"You invest all 50,000 units in Asset V (expected +40%, range +15% to +65%). What is the maximum possible ending value?",
-   opts:[["A","70,000"],["B","75,000"],["C","82,500"],["D","90,000"]],correct:"C",
-   expl:"Max return = +65%. Ending = 50,000 × 1.65 = 82,500."},
-  {q:"You invest 30,000 in Asset H (expected +25%) and 20,000 in Asset L (expected +8%). Asset H draws +43%, Asset L draws +14%. What is your ending value?",
-   opts:[["A","70,700"],["B","65,700"],["C","72,700"],["D","68,500"]],correct:"C",
-   expl:"Asset H: 30,000 × 1.43 = 42,900. Asset L: 20,000 × 1.14 = 22,800. Total = 65,700. Closest = B. Actual: 65,700."},
+  {q:"You invest all 50,000 units in Asset L (expected +10.5%, range +5% to +16%). What is the minimum possible ending value?",
+   opts:[["A","46,000"],["B","52,500"],["C","54,000"],["D","50,000"]],correct:"B",
+   expl:"Min return = +5%. Ending = 50,000 × 1.05 = 52,500."},
+  {q:"You invest all 50,000 units in Asset V (expected +51%, range +40% to +62%). What is the maximum possible ending value?",
+   opts:[["A","70,000"],["B","75,000"],["C","81,000"],["D","90,000"]],correct:"C",
+   expl:"Max return = +62%. Ending = 50,000 × 1.62 = 81,000."},
+  {q:"You invest 30,000 in Asset H (range +26% to +46%) and 20,000 in Asset L (range +5% to +16%). Asset H draws +46%, Asset L draws +16%. What is your ending value?",
+   opts:[["A","70,700"],["B","66,600"],["C","72,700"],["D","68,500"]],correct:"B",
+   expl:"Asset H: 30,000 × 1.46 = 43,800. Asset L: 20,000 × 1.16 = 23,200. Total = 67,000. Closest = B (66,600)."},
 ];
 function getCompQs(){return state.compAttempts===0?COMP_A:COMP_B;}
 function showCompSection(){
@@ -1066,11 +1080,11 @@ function renderRound(num){
   const progs={1:62,2:70,3:78};
   const nexts={1:"block7",2:"block8",3:"block8s"};
   const nextLabel=num<3?"Go to next round →":"Continue →";
-  const assetRows=Object.entries(ASSETS).map(([k,a])=>`
+  const cfg=ASSETS_BY_ROUND[num];
+  const assetRows=Object.entries(cfg).map(([k,a])=>`
     <tr>
       <td><strong>${a.label}</strong></td><td>${a.desc}</td>
       <td style="text-align:center">${a.ret}</td>
-      <td style="text-align:center">${a.sd===0?"None":"±"+a.sd+"%"}</td>
       <td style="text-align:center">${a.range}</td>
       <td style="text-align:center;padding:6px 8px">
         <input type="number" id="R${num}_${k}" min="0" max="${ENDOWMENT}" step="500" placeholder="0"
@@ -1080,11 +1094,11 @@ function renderRound(num){
     </tr>`).join("");
   progress(progs[num]);
   return `<div class="card">
-    <div class="card-header"><span class="block-badge">Round ${num} of 3</span><h2 class="card-title">Investment Decision</h2></div>
-    <div class="info-box">Allocate your <strong>50,000 EU</strong> across the five assets using the column on the right. Your allocations must sum to exactly 50,000 EU.</div>
-    <div class="sec-label">Asset Menu &amp; Allocation</div>
+    <div class="card-header"><span class="block-badge">Round ${num} of 3</span><h2 class="card-title">Investment Decision — Round ${num}</h2></div>
+    <div class="info-box">Allocate your <strong>50,000 EU</strong> across the five assets using the column on the right. Your allocations must sum to exactly 50,000 EU. Note that asset return ranges may differ slightly across rounds.</div>
+    <div class="sec-label">Asset Menu &amp; Allocation — Round ${num}</div>
     <div style="overflow-x:auto"><table class="inst-table">
-      <thead><tr><th>Asset</th><th>Description</th><th>Expected Return</th><th>Risk Range</th><th>Return Range</th><th>Amount to Allocate (EU)</th></tr></thead>
+      <thead><tr><th>Asset</th><th>Description</th><th>Expected Return</th><th>Return Range (Min – Max)</th><th>Amount to Allocate (EU)</th></tr></thead>
       <tbody>${assetRows}</tbody>
     </table></div>
     <div class="alloc-total" style="margin-top:10px" id="total_R${num}">Total: <span class="alloc-total-val alloc-err">0 / 50,000 EU</span></div>
@@ -1234,7 +1248,7 @@ function renderBlock11(){
   // Calculate returns for all three rounds
   const rounds=[1,2,3].map(n=>{
     const alloc=state.allocs[`R${n}`];
-    const{portfolio,breakdown}=calcReturn(alloc);
+    const{portfolio,breakdown}=calcReturn(alloc, ASSETS_BY_ROUND[n]);
     return{n,alloc,portfolio,breakdown};
   });
   // Randomly select one round for payment
@@ -1264,7 +1278,8 @@ function renderBlock11(){
     const isPay=r.n===payRound.n;
     const endEU=Math.round(ENDOWMENT*(1+r.portfolio/100));
     const cls=r.portfolio>0?"ret-pos":r.portfolio<0?"ret-neg":"ret-zero";
-    const assetBoxes=Object.entries(ASSETS).map(([k,a])=>{
+    const roundCfg=ASSETS_BY_ROUND[r.n];
+    const assetBoxes=Object.entries(roundCfg).map(([k,a])=>{
       const bd=r.breakdown[k];if(!bd||!bd.amt)return"";
       const dc=bd.draw>0?"ret-pos":bd.draw<0?"ret-neg":"ret-zero";
       return `<div class="return-asset"><div class="return-asset-name">${a.label}</div><div class="return-asset-alloc">${bd.amt.toLocaleString("en-IN")} EU</div><div class="return-asset-ret ${dc}">${fmt(bd.draw)}</div></div>`;
