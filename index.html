@@ -107,7 +107,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 // CONFIG  —  paste your NEW pilot Google Apps Script Web App URL here
 // ═══════════════════════════════════════════════════════════════════════════
 const CONFIG = {
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzfxtCmo94HDoxuhaLPJubGLQ9G91ReBZxoMEPKuEhoDZ3apY8Sf5CcexKZVzfOgw14/exec",   // ← paste pilot Web App URL here
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbx-LgyWBT8tgqdOdAQG_T6moadmQ0K5VR7GurbonNCiBFBdVpN9dE3X16-XYtKDjyoA/exec",   // ← paste pilot Web App URL here
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -415,7 +415,6 @@ function goSection(sec){
     block6:()=>renderRound(1), block7:()=>renderRound(2), block8:()=>renderRound(3),
     block8s:renderSelfAssess,
     block9:renderBlock9, block9b:renderBlock9b,
-    block10:renderBlock10,
     block11:renderBlock11,
   };
   if(fns[sec])wrap.innerHTML=fns[sec]();
@@ -1190,53 +1189,6 @@ function submitBlock9b(){
   const v=getChecked("rank_belief");
   if(!v){document.getElementById("err-b9b").style.display="block";return;}
   saveBlock("B9b_RankBelief",{rank_belief:v});
-  goSection("block10");
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// RENDER — BLOCK 10: A BIT MORE ABOUT YOU (SCO only)
-// ═══════════════════════════════════════════════════════════════════════════
-function renderBlock10(){
-  progress(91);
-  const scale5=["Strongly disagree","Disagree","Neither agree nor disagree","Agree","Strongly agree"];
-  const scoItems=[
-    "I often compare how my loved ones are doing with how others are doing.",
-    "I always pay a lot of attention to how I do things compared with how others do things.",
-    "If I want to find out how well I have done something, I compare what I have done with how others have done.",
-    "I often compare how I am doing socially with other people.",
-    "I am not the type of person who compares often with others.",
-    "I often compare myself with others with respect to what I have accomplished in life.",
-    "I often like to talk with others about mutual opinions and experiences.",
-    "I often try to find out what others think who face similar problems as I face.",
-    "I always like to know what others in a similar situation would do.",
-    "If I want to learn more about something, I try to find out what others think about it.",
-    "I never consider my situation in life relative to that of other people.",
-  ];
-  const scaleHead=scale5.map(l=>`<th>${l}</th>`).join("");
-  const rows=scoItems.map((txt,i)=>{
-    const cells=scale5.map((_,si)=>`<td><input type="radio" name="sco_${i}" value="${si+1}"></td>`).join("");
-    return `<tr><td class="stmt">${i+1}. ${txt}</td>${cells}</tr>`;
-  }).join("");
-  return `<div class="card">
-    <div class="card-header"><span class="block-badge">Block 10</span><h2 class="card-title">A Bit More About You</h2></div>
-    <div class="sec-label">Social Comparison Orientation</div>
-    <p style="font-size:13px;color:var(--slate);margin-bottom:10px">How much does each statement apply to you?</p>
-    <div class="matrix-wrap">
-      <table class="matrix">
-        <thead><tr><th class="stmt-col">Statement</th>${scaleHead}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-    <div id="err-b10" class="error-box">Please answer all questions.</div>
-    ${navRow("submitBlock10()")}
-  </div>`;
-}
-function submitBlock10(){
-  let ok=true;
-  for(let i=0;i<11;i++){if(!getChecked(`sco_${i}`)){ok=false;break;}}
-  if(!ok){document.getElementById("err-b10").style.display="block";return;}
-  const d={sco:[...Array(11)].map((_,i)=>getChecked(`sco_${i}`)).join(",")};
-  saveBlock("B10_SCO",d);
   goSection("block11");
 }
 
